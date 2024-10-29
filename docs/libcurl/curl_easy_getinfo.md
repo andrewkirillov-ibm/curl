@@ -148,7 +148,7 @@ Available HTTP authentication methods. See CURLINFO_HTTPAUTH_AVAIL(3)
 
 ## CURLINFO_HTTPAUTH_USED
 
-USed HTTP authentication method. See CURLINFO_HTTPAUTH_USED(3)
+Used HTTP authentication method. See CURLINFO_HTTPAUTH_USED(3)
 
 ## CURLINFO_HTTP_CONNECTCODE
 
