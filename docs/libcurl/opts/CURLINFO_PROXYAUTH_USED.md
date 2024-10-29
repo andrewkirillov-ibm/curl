@@ -47,8 +47,8 @@ int main(void)
     curl_easy_setopt(curl, CURLOPT_URL, "https://example.com");
     curl_easy_setopt(curl, CURLOPT_PROXY, "http://proxy.example.com");
     curl_easy_setopt(curl, CURLOPT_PROXYAUTH, CURLAUTH_BASIC | CURLAUTH_DIGEST);
-    curl_easy_setopt(curl, CURLOPT_PROXY_USERNAME, "shrek");
-    curl_easy_setopt(curl, CURLOPT_PROXY_PASSWORD, "swamp");
+    curl_easy_setopt(curl, CURLOPT_PROXYUSERNAME, "shrek");
+    curl_easy_setopt(curl, CURLOPT_PROXYPASSWORD, "swamp");
 
     res = curl_easy_perform(curl);
 
