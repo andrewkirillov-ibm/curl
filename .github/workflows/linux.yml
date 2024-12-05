@@ -48,13 +48,13 @@ env:
   # renovate: datasource=github-tags depName=nibanks/msh3 versioning=semver registryUrl=https://github.com
   msh3-version: 0.6.0
   # renovate: datasource=github-tags depName=awslabs/aws-lc versioning=semver registryUrl=https://github.com
-  awslc-version: 1.38.0
+  awslc-version: 1.40.0
   # handled in renovate.json
   openssl-version: 3.4.0
   # handled in renovate.json
   quictls-version: 3.3.0
   # renovate: datasource=github-tags depName=rustls/rustls-ffi versioning=semver registryUrl=https://github.com
-  rustls-version: 0.14.0
+  rustls-version: 0.14.1
 
 jobs:
   linux:
@@ -94,7 +94,7 @@ jobs:
           - name: wolfssl-all
             install_packages: zlib1g-dev
             install_steps: wolfssl-all
-            configure: LDFLAGS="-Wl,-rpath,$HOME/wolfssl-all/lib" --with-wolfssl=$HOME/wolfssl-all --enable-debug
+            configure: LDFLAGS="-Wl,-rpath,$HOME/wolfssl-all/lib" --with-wolfssl=$HOME/wolfssl-all --enable-ech --enable-debug
 
           - name: wolfssl-opensslextra valgrind
             install_packages: zlib1g-dev valgrind
@@ -140,12 +140,12 @@ jobs:
           - name: awslc
             install_packages: zlib1g-dev
             install_steps: awslc
-            configure: LDFLAGS="-Wl,-rpath,$HOME/awslc/lib" --with-openssl=$HOME/awslc --enable-httpsrr --enable-ech
+            configure: LDFLAGS="-Wl,-rpath,$HOME/awslc/lib" --with-openssl=$HOME/awslc --enable-ech
 
           - name: awslc
             install_packages: zlib1g-dev
             install_steps: awslc
-            generate: -DOPENSSL_ROOT_DIR=$HOME/awslc -DUSE_HTTPSRR=ON -DUSE_ECH=ON -DCMAKE_UNITY_BUILD=OFF
+            generate: -DOPENSSL_ROOT_DIR=$HOME/awslc -DUSE_ECH=ON -DCMAKE_UNITY_BUILD=OFF
 
           - name: openssl default
             install_steps: pytest
@@ -290,6 +290,7 @@ jobs:
             libtool autoconf automake pkgconf ninja-build stunnel4 \
             libpsl-dev libbrotli-dev libzstd-dev \
             ${{ matrix.build.install_packages }}
+          python3 -m venv $HOME/venv
         name: 'install prereqs'
 
       - if: contains(matrix.build.name, 'i686')
@@ -301,6 +302,7 @@ jobs:
             libtool autoconf automake pkgconf stunnel4 \
             libpsl-dev:i386 libbrotli-dev:i386 libzstd-dev:i386 \
             ${{ matrix.build.install_packages }}
+          python3 -m venv $HOME/venv
         name: 'install prereqs'
 
       - if: contains(matrix.build.install_steps, 'pytest')
@@ -340,7 +342,8 @@ jobs:
       - name: 'build bearssl'
         if: contains(matrix.build.install_steps, 'bearssl') && steps.cache-bearssl.outputs.cache-hit != 'true'
         run: |
-          curl -LOsSf --retry 6 --retry-connrefused --max-time 999 https://bearssl.org/bearssl-${{ env.bearssl-version }}.tar.gz
+          curl -LOsSf --retry 6 --retry-connrefused --max-time 999 \
+            https://bearssl.org/bearssl-${{ env.bearssl-version }}.tar.gz
           tar -xzf bearssl-${{ env.bearssl-version }}.tar.gz
           cd bearssl-${{ env.bearssl-version }}
           make
@@ -361,9 +364,10 @@ jobs:
       - name: 'build libressl'
         if: contains(matrix.build.install_steps, 'libressl') && steps.cache-libressl.outputs.cache-hit != 'true'
         run: |
-          git clone --quiet --depth=1 -b v${{ env.libressl-version }} https://github.com/libressl-portable/portable.git libressl-git
-          cd libressl-git
-          ./autogen.sh
+          curl -LOsSf --retry 6 --retry-connrefused --max-time 999 \
+            https://github.com/libressl/portable/releases/download/v${{ env.libressl-version }}/libressl-${{ env.libressl-version }}.tar.gz
+          tar -xzf libressl-${{ env.libressl-version }}.tar.gz
+          cd libressl-${{ env.libressl-version }}
           ./configure --disable-dependency-tracking --prefix=$HOME/libressl
           make install
 
@@ -380,11 +384,13 @@ jobs:
       - name: 'build wolfssl (all)'
         if: contains(matrix.build.install_steps, 'wolfssl-all') && steps.cache-wolfssl-all.outputs.cache-hit != 'true'
         run: |
-          curl -LOsSf --retry 6 --retry-connrefused --max-time 999 https://github.com/wolfSSL/wolfssl/archive/v${{ env.wolfssl-version }}-stable.tar.gz
+          curl -LOsSf --retry 6 --retry-connrefused --max-time 999 \
+            https://github.com/wolfSSL/wolfssl/archive/v${{ env.wolfssl-version }}-stable.tar.gz
           tar -xzf v${{ env.wolfssl-version }}-stable.tar.gz
           cd wolfssl-${{ env.wolfssl-version }}-stable
           ./autogen.sh
-          ./configure --disable-dependency-tracking --enable-tls13 --enable-harden --prefix=$HOME/wolfssl-all --enable-all
+          ./configure --disable-dependency-tracking --enable-tls13 --enable-harden --enable-all \
+            --disable-benchmark --disable-crypttests --disable-examples --prefix=$HOME/wolfssl-all
           make install
 
       - name: 'cache wolfssl (opensslextra)'
@@ -400,11 +406,13 @@ jobs:
       - name: 'build wolfssl (opensslextra)'
         if: contains(matrix.build.install_steps, 'wolfssl-opensslextra') && steps.cache-wolfssl-opensslextra.outputs.cache-hit != 'true'
         run: |
-          curl -LOsSf --retry 6 --retry-connrefused --max-time 999 https://github.com/wolfSSL/wolfssl/archive/v${{ env.wolfssl-version }}-stable.tar.gz
+          curl -LOsSf --retry 6 --retry-connrefused --max-time 999 \
+            https://github.com/wolfSSL/wolfssl/archive/v${{ env.wolfssl-version }}-stable.tar.gz
           tar -xzf v${{ env.wolfssl-version }}-stable.tar.gz
           cd wolfssl-${{ env.wolfssl-version }}-stable
           ./autogen.sh
-          ./configure --disable-dependency-tracking --enable-tls13 --enable-harden --prefix=$HOME/wolfssl-opensslextra --enable-opensslextra
+          ./configure --disable-dependency-tracking --enable-tls13 --enable-harden --enable-opensslextra \
+            --disable-benchmark --disable-crypttests --disable-examples --prefix=$HOME/wolfssl-opensslextra
           make install
 
       - name: 'cache mbedtls'
@@ -420,9 +428,10 @@ jobs:
       - name: 'build mbedtls'
         if: contains(matrix.build.install_steps, 'mbedtls') && steps.cache-mbedtls.outputs.cache-hit != 'true'
         run: |
-          git clone --quiet --depth=1 -b v${{ env.mbedtls-version }} https://github.com/Mbed-TLS/mbedtls
-          cd mbedtls
-          git submodule update --init --depth=1
+          curl -LOsSf --retry 6 --retry-connrefused --max-time 999 \
+            https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-${{ env.mbedtls-version }}/mbedtls-${{ env.mbedtls-version }}.tar.bz2
+          tar -xjf mbedtls-${{ env.mbedtls-version }}.tar.bz2
+          cd mbedtls-${{ env.mbedtls-version }}
           ./scripts/config.py set MBEDTLS_THREADING_C
           ./scripts/config.py set MBEDTLS_THREADING_PTHREAD
           cmake -B . -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX=$HOME/mbedtls \
@@ -445,7 +454,8 @@ jobs:
         run: |
           git clone --quiet --depth=1 -b openssl-${{ env.openssl-version }} https://github.com/openssl/openssl
           cd openssl
-          CC="clang" CFLAGS="-fsanitize=thread" LDFLAGS="-fsanitize=thread" ./config --prefix=$HOME/openssl --libdir=lib
+          CC="clang" CFLAGS="-fsanitize=thread" LDFLAGS="-fsanitize=thread" ./config --prefix=$HOME/openssl --libdir=lib no-makedepend no-apps no-docs no-tests
+          make
           make -j1 install_sw
 
       - name: 'cache quictls'
@@ -463,7 +473,8 @@ jobs:
         run: |
           git clone --quiet --depth=1 -b openssl-${{ env.quictls-version }}-quic1 https://github.com/quictls/openssl
           cd openssl
-          ./config --prefix=$HOME/quictls --libdir=lib
+          ./config --prefix=$HOME/quictls --libdir=lib no-makedepend no-apps no-docs no-tests
+          make
           make -j1 install_sw
 
       - name: 'cache msh3'
@@ -503,7 +514,7 @@ jobs:
           tar xzf v${{ env.awslc-version }}.tar.gz
           mkdir aws-lc-${{ env.awslc-version }}-build
           cd aws-lc-${{ env.awslc-version }}-build
-          cmake -G Ninja -DCMAKE_INSTALL_PREFIX=$HOME/awslc ../aws-lc-${{ env.awslc-version }}
+          cmake -G Ninja -DCMAKE_INSTALL_PREFIX=$HOME/awslc ../aws-lc-${{ env.awslc-version }} -DBUILD_TOOL=OFF -DBUILD_TESTING=OFF
           cmake --build .
           cmake --install .
 
@@ -616,7 +627,8 @@ jobs:
       - name: 'install test prereqs'
         if: ${{ matrix.build.install_steps != 'skipall' && matrix.build.container == null }}
         run: |
-          sudo python3 -m pip install --break-system-packages -r tests/requirements.txt
+          [ -x "$HOME/venv/bin/activate" ] && source $HOME/venv/bin/activate
+          python3 -m pip install -r tests/requirements.txt
 
       - name: 'run tests'
         if: ${{ matrix.build.install_steps != 'skipall' && matrix.build.install_steps != 'skiprun' }}
@@ -631,6 +643,7 @@ jobs:
               TFLAGS+=' ~2077 ~2078'  # valgrind errors
             fi
           fi
+          [ -x "$HOME/venv/bin/activate" ] && source $HOME/venv/bin/activate
           if [ -n '${{ matrix.build.generate }}' ]; then
             cmake --build . --verbose --target ${{ matrix.build.torture && 'test-torture' || 'test-ci' }}
           else
@@ -640,7 +653,8 @@ jobs:
       - name: 'install pytest prereqs'
         if: contains(matrix.build.install_steps, 'pytest')
         run: |
-          sudo python3 -m pip install --break-system-packages -r tests/http/requirements.txt
+          [ -x "$HOME/venv/bin/activate" ] && source $HOME/venv/bin/activate
+          python3 -m pip install -r tests/http/requirements.txt
 
       - name: 'run pytest'
         if: contains(matrix.build.install_steps, 'pytest')
@@ -648,6 +662,7 @@ jobs:
           TFLAGS: "${{ matrix.build.tflags }}"
           CURL_CI: github
         run: |
+          [ -x "$HOME/venv/bin/activate" ] && source $HOME/venv/bin/activate
           if [ -n '${{ matrix.build.generate }}' ]; then
             cmake --build . --verbose --target curl-pytest-ci
           else

@@ -46,6 +46,26 @@
 cmake_minimum_required(VERSION 3.7...3.16 FATAL_ERROR)
 message(STATUS "Using CMake version ${CMAKE_VERSION}")
 
+# Collect command-line arguments for buildinfo.txt.
+# Must reside at the top of the script to work as expected.
+set(_cmake_args "")
+if(NOT "$ENV{CURL_BUILDINFO}$ENV{CURL_CI}$ENV{CI}" STREQUAL "")
+  get_cmake_property(_cache_vars CACHE_VARIABLES)
+  foreach(_cache_var IN ITEMS ${_cache_vars})
+    get_property(_cache_var_helpstring CACHE ${_cache_var} PROPERTY HELPSTRING)
+    if(_cache_var_helpstring STREQUAL "No help, variable specified on the command line.")
+      get_property(_cache_var_type CACHE ${_cache_var} PROPERTY TYPE)
+      get_property(_cache_var_value CACHE ${_cache_var} PROPERTY VALUE)
+      if(_cache_var_type STREQUAL "UNINITIALIZED")
+        set(_cache_var_type)
+      else()
+        set(_cache_var_type ":${_cache_var_type}")
+      endif()
+      set(_cmake_args "${_cmake_args} -D${_cache_var}${_cache_var_type}=\"${_cache_var_value}\"")
+    endif()
+  endforeach()
+endif()
+
 function(curl_dumpvars)  # Dump all defined variables with their values
   message("::group::CMake Variable Dump")
   get_cmake_property(_vars VARIABLES)
@@ -87,6 +107,9 @@ if(BSD)
 endif()
 if(WIN32)
   set(_target_flags "${_target_flags} WIN32")
+endif()
+if(WINDOWS_STORE)
+  set(_target_flags "${_target_flags} UWP")
 endif()
 if(CYGWIN)
   set(_target_flags "${_target_flags} CYGWIN")
@@ -158,6 +181,9 @@ if(WIN32)
   endif()
 
   option(ENABLE_UNICODE "Use the Unicode version of the Windows API functions" OFF)
+  if(WINDOWS_STORE)
+    set(ENABLE_UNICODE ON)
+  endif()
   if(ENABLE_UNICODE)
     add_definitions("-DUNICODE" "-D_UNICODE")
     if(MINGW)
@@ -468,7 +494,7 @@ include(CheckCSourceCompiles)
 if(WIN32)
   include("${CMAKE_CURRENT_SOURCE_DIR}/CMake/Platforms/WindowsCache.cmake")
 elseif(APPLE)
-  # Fast-track predicable feature detections
+  # Fast-track predictable feature detections
   set(HAVE_EVENTFD 0)
   set(HAVE_GETPASS_R 0)
   set(HAVE_SENDMMSG 0)
@@ -636,7 +662,7 @@ if(CURL_USE_MBEDTLS)
   set(USE_MBEDTLS ON)
   list(APPEND CURL_LIBS ${MBEDTLS_LIBRARIES})
   list(APPEND CURL_LIBDIRS ${MBEDTLS_LIBRARY_DIRS})
-  list(APPEND LIBCURL_PC_REQUIRES_PRIVATE "mbedtls")
+  list(APPEND LIBCURL_PC_REQUIRES_PRIVATE ${MBEDTLS_PC_REQUIRES})
   include_directories(SYSTEM ${MBEDTLS_INCLUDE_DIRS})
   link_directories(${MBEDTLS_LIBRARY_DIRS})
   if(MBEDTLS_CFLAGS)
@@ -726,7 +752,7 @@ if(CURL_USE_RUSTLS)
   set(USE_RUSTLS ON)
   list(APPEND CURL_LIBS ${RUSTLS_LIBRARIES})
   list(APPEND CURL_LIBDIRS ${RUSTLS_LIBRARY_DIRS})
-  list(APPEND LIBCURL_PC_REQUIRES_PRIVATE "rustls")
+  list(APPEND LIBCURL_PC_REQUIRES_PRIVATE ${RUSTLS_PC_REQUIRES})
   include_directories(SYSTEM ${RUSTLS_INCLUDE_DIRS})
   link_directories(${RUSTLS_LIBRARY_DIRS})
   if(RUSTLS_CFLAGS)
@@ -830,9 +856,9 @@ macro(openssl_check_quic)
 endmacro()
 
 if(USE_WOLFSSL)
-  openssl_check_symbol_exists("wolfSSL_DES_ecb_encrypt" "wolfssl/openssl/des.h" HAVE_WOLFSSL_DES_ECB_ENCRYPT "")
-  openssl_check_symbol_exists("wolfSSL_BIO_new" "wolfssl/ssl.h" HAVE_WOLFSSL_BIO "")
-  openssl_check_symbol_exists("wolfSSL_BIO_set_shutdown" "wolfssl/ssl.h" HAVE_WOLFSSL_FULL_BIO "")
+  openssl_check_symbol_exists("wolfSSL_DES_ecb_encrypt" "wolfssl/options.h;wolfssl/openssl/des.h" HAVE_WOLFSSL_DES_ECB_ENCRYPT "")
+  openssl_check_symbol_exists("wolfSSL_BIO_new" "wolfssl/options.h;wolfssl/ssl.h" HAVE_WOLFSSL_BIO "")
+  openssl_check_symbol_exists("wolfSSL_BIO_set_shutdown" "wolfssl/options.h;wolfssl/ssl.h" HAVE_WOLFSSL_FULL_BIO "")
 endif()
 
 if(USE_OPENSSL OR USE_WOLFSSL)
@@ -844,7 +870,7 @@ if(USE_OPENSSL OR USE_WOLFSSL)
   endif()
 endif()
 
-option(USE_HTTPSRR "Enable HTTPS RR support for ECH (experimental)" OFF)
+option(USE_HTTPSRR "Enable HTTPS RR support" OFF)
 option(USE_ECH "Enable ECH support" OFF)
 if(USE_ECH)
   if(USE_OPENSSL OR USE_WOLFSSL)
@@ -952,7 +978,7 @@ if(USE_MSH3)
   find_package(MSH3 REQUIRED)
   list(APPEND CURL_LIBS ${MSH3_LIBRARIES})
   list(APPEND CURL_LIBDIRS ${MSH3_LIBRARY_DIRS})
-  list(APPEND LIBCURL_PC_REQUIRES_PRIVATE "libmsh3")
+  list(APPEND LIBCURL_PC_REQUIRES_PRIVATE ${MSH3_PC_REQUIRES})
   include_directories(SYSTEM ${MSH3_INCLUDE_DIRS})
   link_directories(${MSH3_LIBRARY_DIRS})
   if(MSH3_CFLAGS)
@@ -1041,7 +1067,8 @@ if(NOT CURL_DISABLE_LDAP)
       list(APPEND CMAKE_REQUIRED_DEFINITIONS "-DLDAP_DEPRECATED=1")
       list(APPEND CMAKE_REQUIRED_LIBRARIES ${LDAP_LIBRARY})
       set(CURL_LIBS "${LDAP_LIBRARY};${CURL_LIBS}")
-      set(LIBCURL_PC_REQUIRES_PRIVATE "ldap;${LIBCURL_PC_REQUIRES_PRIVATE}")
+      # FIXME: uncomment once pkg-config-based detection landed: https://github.com/curl/curl/pull/15273
+      # set(LIBCURL_PC_REQUIRES_PRIVATE "${LDAP_PC_REQUIRES};${LIBCURL_PC_REQUIRES_PRIVATE}")
       if(HAVE_LIBLBER)
         list(APPEND CMAKE_REQUIRED_LIBRARIES ${LDAP_LBER_LIBRARY})
         set(CURL_LIBS "${LDAP_LBER_LIBRARY};${CURL_LIBS}")
@@ -1210,17 +1237,12 @@ if(CURL_USE_GSSAPI)
 
   set(HAVE_GSSAPI ${GSS_FOUND})
   if(GSS_FOUND)
-    cmake_push_check_state()
-    list(APPEND CMAKE_REQUIRED_INCLUDES ${GSS_INCLUDE_DIRS})
+    if(GSS_FLAVOUR STREQUAL "GNU")
+      set(HAVE_GSSGNU 1)
+    else()
+      cmake_push_check_state()
+      list(APPEND CMAKE_REQUIRED_INCLUDES ${GSS_INCLUDE_DIRS})
 
-    string(REPLACE ";" " " GSS_CFLAGS "${GSS_CFLAGS}")
-    string(REPLACE ";" " " GSS_LDFLAGS "${GSS_LDFLAGS}")
-
-    foreach(_dir IN LISTS GSS_LIBRARY_DIRS)
-      set(GSS_LDFLAGS "${GSS_LDFLAGS} -L\"${_dir}\"")
-    endforeach()
-
-    if(NOT GSS_FLAVOUR STREQUAL "GNU")
       set(_include_list "")
       check_include_file("gssapi/gssapi.h" HAVE_GSSAPI_GSSAPI_H)
       if(HAVE_GSSAPI_GSSAPI_H)
@@ -1238,8 +1260,9 @@ if(CURL_USE_GSSAPI)
         endif()
 
         if(NOT DEFINED HAVE_GSS_C_NT_HOSTBASED_SERVICE)
-          set(CMAKE_REQUIRED_FLAGS "${GSS_CFLAGS} ${GSS_LDFLAGS}")
+          set(CMAKE_REQUIRED_FLAGS ${GSS_CFLAGS})
           set(CMAKE_REQUIRED_LIBRARIES ${GSS_LIBRARIES})
+          curl_required_libpaths("${GSS_LIBRARY_DIRS}")
           check_symbol_exists("GSS_C_NT_HOSTBASED_SERVICE" "${_include_list}" HAVE_GSS_C_NT_HOSTBASED_SERVICE)
         endif()
         if(NOT HAVE_GSS_C_NT_HOSTBASED_SERVICE)
@@ -1247,22 +1270,16 @@ if(CURL_USE_GSSAPI)
         endif()
       endif()
       unset(_include_list)
+      cmake_pop_check_state()
     endif()
-    cmake_pop_check_state()
 
+    list(APPEND CURL_LIBS ${GSS_LIBRARIES})
+    list(APPEND CURL_LIBDIRS ${GSS_LIBRARY_DIRS})
+    list(APPEND LIBCURL_PC_REQUIRES_PRIVATE ${GSS_PC_REQUIRES})
     include_directories(SYSTEM ${GSS_INCLUDE_DIRS})
     link_directories(${GSS_LIBRARY_DIRS})
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${GSS_CFLAGS}")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${GSS_LDFLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GSS_LDFLAGS}")
-    list(APPEND CURL_LIBS ${GSS_LIBRARIES})
-    if(GSS_FLAVOUR STREQUAL "GNU")
-      set(HAVE_GSSGNU 1)
-      list(APPEND LIBCURL_PC_REQUIRES_PRIVATE "gss")
-    elseif(GSS_FLAVOUR STREQUAL "MIT")
-      list(APPEND LIBCURL_PC_REQUIRES_PRIVATE "mit-krb5-gssapi")
-    else()  # Heimdal
-      list(APPEND LIBCURL_PC_REQUIRES_PRIVATE "heimdal-gssapi")
+    if(GSS_CFLAGS)
+      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${GSS_CFLAGS}")
     endif()
   else()
     message(WARNING "GSSAPI has been requested, but no supporting libraries found. Skipping.")
@@ -2054,12 +2071,32 @@ if(NOT CURL_DISABLE_INSTALL)
   else()
     set(libdir                "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
   endif()
-  set(LDFLAGS                 "${CMAKE_SHARED_LINKER_FLAGS}")
   # "a" (Linux) or "lib" (Windows)
   string(REPLACE "." "" libext "${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
   set(_ldflags "")
   set(LIBCURL_PC_LIBS_PRIVATE "")
+
+  # Filter CMAKE_SHARED_LINKER_FLAGS for libs and libpaths
+  string(STRIP "${CMAKE_SHARED_LINKER_FLAGS}" _custom_ldflags)
+  string(REGEX REPLACE " +-([^ \\t;]*)" ";-\\1" _custom_ldflags "${_custom_ldflags}")
+
+  set(_custom_libs "")
+  set(_custom_libdirs "")
+  foreach(_flag IN LISTS _custom_ldflags)
+    if(_flag MATCHES "^-l")
+      string(REGEX REPLACE "^-l" "" _flag "${_flag}")
+      list(APPEND _custom_libs "${_flag}")
+    elseif(_flag MATCHES "^-framework|^-F")
+      list(APPEND _custom_libs "${_flag}")
+    elseif(_flag MATCHES "^-L")
+      string(REGEX REPLACE "^-L" "" _flag "${_flag}")
+      list(APPEND _custom_libdirs "${_flag}")
+    elseif(_flag MATCHES "^--library-path=")
+      string(REGEX REPLACE "^--library-path=" "" _flag "${_flag}")
+      list(APPEND _custom_libdirs "${_flag}")
+    endif()
+  endforeach()
 
   # Avoid getting unnecessary -L options for known system directories.
   unset(_sys_libdirs)
@@ -2080,7 +2117,7 @@ if(NOT CURL_DISABLE_INSTALL)
     endif()
   endforeach()
 
-  foreach(_libdir IN LISTS CURL_LIBDIRS)
+  foreach(_libdir IN LISTS _custom_libdirs CURL_LIBDIRS)
     list(FIND _sys_libdirs "${_libdir}" _libdir_index)
     if(_libdir_index LESS 0)
       list(APPEND _ldflags "-L${_libdir}")
@@ -2092,7 +2129,7 @@ if(NOT CURL_DISABLE_INSTALL)
     set(_implicit_libs ${CMAKE_C_IMPLICIT_LINK_LIBRARIES})
   endif()
 
-  foreach(_lib IN LISTS _implicit_libs CURL_LIBS)
+  foreach(_lib IN LISTS _implicit_libs _custom_libs CURL_LIBS)
     if(TARGET "${_lib}")
       set(_libname "${_lib}")
       get_target_property(_imported "${_libname}" IMPORTED)
@@ -2138,8 +2175,10 @@ if(NOT CURL_DISABLE_INSTALL)
   if(_ldflags)
     list(REMOVE_DUPLICATES _ldflags)
     string(REPLACE ";" " " _ldflags "${_ldflags}")
-    set(LDFLAGS "${LDFLAGS} ${_ldflags}")
-    string(STRIP "${LDFLAGS}" LDFLAGS)
+    set(LIBCURL_PC_LDFLAGS_PRIVATE "${_ldflags}")
+    string(STRIP "${LIBCURL_PC_LDFLAGS_PRIVATE}" LIBCURL_PC_LDFLAGS_PRIVATE)
+  else()
+    set(LIBCURL_PC_LDFLAGS_PRIVATE "")
   endif()
   set(LIBCURL_PC_CFLAGS_PRIVATE "-DCURL_STATICLIB")
 
@@ -2171,8 +2210,8 @@ if(NOT CURL_DISABLE_INSTALL)
   #   ENABLE_STATIC
   #   exec_prefix
   #   includedir
-  #   LDFLAGS
   #   LIBCURL_PC_CFLAGS
+  #   LIBCURL_PC_LDFLAGS_PRIVATE
   #   LIBCURL_PC_LIBS_PRIVATE
   #   libdir
   #   libext
@@ -2196,9 +2235,9 @@ if(NOT CURL_DISABLE_INSTALL)
   #   CURLVERSION
   #   exec_prefix
   #   includedir
-  #   LDFLAGS
   #   LIBCURL_PC_CFLAGS
   #   LIBCURL_PC_CFLAGS_PRIVATE
+  #   LIBCURL_PC_LDFLAGS_PRIVATE
   #   LIBCURL_PC_LIBS
   #   LIBCURL_PC_LIBS_PRIVATE
   #   LIBCURL_PC_REQUIRES
@@ -2269,7 +2308,7 @@ if(NOT CURL_DISABLE_INSTALL)
     configure_file(
       "${CMAKE_CURRENT_SOURCE_DIR}/CMake/cmake_uninstall.cmake.in"
       "${CMAKE_CURRENT_BINARY_DIR}/CMake/cmake_uninstall.cmake"
-      IMMEDIATE @ONLY)
+      @ONLY)
 
     add_custom_target(curl_uninstall
       COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/CMake/cmake_uninstall.cmake")
@@ -2298,6 +2337,7 @@ set(_buildinfo "\
 buildinfo.configure.tool: cmake
 buildinfo.configure.command: ${CMAKE_COMMAND}
 buildinfo.configure.version: ${CMAKE_VERSION}
+buildinfo.configure.args:${_cmake_args}
 buildinfo.configure.generator: ${CMAKE_GENERATOR}
 buildinfo.configure.make: ${CMAKE_MAKE_PROGRAM}
 buildinfo.host.cpu: ${CMAKE_HOST_SYSTEM_PROCESSOR}
