@@ -161,6 +161,7 @@ const struct Curl_handler Curl_handler_scp = {
   ZERO_NULL,                    /* write_resp_hd */
   ZERO_NULL,                    /* connection_check */
   ZERO_NULL,                    /* attach connection */
+  ZERO_NULL,                    /* follow */
   PORT_SSH,                     /* defport */
   CURLPROTO_SCP,                /* protocol */
   CURLPROTO_SCP,                /* family */
@@ -189,6 +190,7 @@ const struct Curl_handler Curl_handler_sftp = {
   ZERO_NULL,                            /* write_resp_hd */
   ZERO_NULL,                            /* connection_check */
   ZERO_NULL,                            /* attach connection */
+  ZERO_NULL,                            /* follow */
   PORT_SSH,                             /* defport */
   CURLPROTO_SFTP,                       /* protocol */
   CURLPROTO_SFTP,                       /* family */
@@ -1846,7 +1848,7 @@ static CURLcode myssh_statemach_act(struct Curl_easy *data, bool *block)
       }
 
       rc = ssh_scp_push_file(sshc->scp_session, protop->path,
-                             data->state.infilesize,
+                             (size_t)data->state.infilesize,
                              (int)data->set.new_file_perms);
       if(rc != SSH_OK) {
         err_msg = ssh_get_error(sshc->ssh_session);
