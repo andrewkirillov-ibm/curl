@@ -212,7 +212,14 @@ struct ssh_conn {
   byte handle[WOLFSSH_MAX_HANDLE];
   curl_off_t offset;
 #endif /* USE_LIBSSH */
+  BIT(initialised);
 };
+
+#ifdef USE_LIBSSH
+#if LIBSSH_VERSION_INT < SSH_VERSION_INT(0, 9, 0)
+#  error "SCP/SFTP protocols require libssh 0.9.0 or later"
+#endif
+#endif
 
 #if defined(USE_LIBSSH2)
 
@@ -223,9 +230,6 @@ struct ssh_conn {
 #  error "SCP/SFTP protocols require libssh2 1.2.8 or later"
 /* 1.2.8 was released on April 5 2011 */
 #endif
-
-/* get it at runtime  */
-#define CURL_LIBSSH2_VERSION libssh2_version(0)
 
 #endif /* USE_LIBSSH2 */
 
