@@ -24,13 +24,13 @@
 # files used only in some libcurl test programs
 TESTUTIL = testutil.c testutil.h
 TSTTRACE = testtrace.c testtrace.h
-WARNLESS = ../../lib/warnless.c ../../lib/warnless.h
-MULTIBYTE = ../../lib/curl_multibyte.c ../../lib/curl_multibyte.h
-INET_PTON = ../../lib/inet_pton.c ../../lib/inet_pton.h
+WARNLESS = ../../lib/curlx/warnless.c ../../lib/curlx/warnless.h
+MULTIBYTE = ../../lib/curlx/multibyte.c ../../lib/curlx/multibyte.h
 THREADS = ../../lib/curl_threads.c ../../lib/curl_threads.h
+MEMPTR = memptr.c
 
 # these files are used in every single test program below
-TIMEDIFF = ../../lib/timediff.c ../../lib/timediff.h
+TIMEDIFF = ../../lib/curlx/timediff.c ../../lib/curlx/timediff.h
 FIRSTFILES = first.c first.h
 SUPPORTFILES = $(TIMEDIFF) $(FIRSTFILES) test.h
 
@@ -75,7 +75,7 @@ LIBTESTPROGS = libauthretry libntlmconnect libprereq                     \
  lib1960 lib1964 \
  lib1970 lib1971 lib1972 lib1973 lib1974 lib1975 lib1977 lib1978 \
  lib2301 lib2302 lib2304 lib2305 lib2306         lib2308 lib2309 lib2310 \
- lib2311 \
+ lib2311 lib2312 \
  lib2402 lib2404 lib2405 \
  lib2502 \
  lib3010 lib3025 lib3026 lib3027 \
@@ -657,7 +657,7 @@ lib1958_LDADD = $(TESTUTIL_LIBS)
 lib1959_SOURCES = lib1959.c $(SUPPORTFILES) $(TESTUTIL) $(WARNLESS)
 lib1959_LDADD = $(TESTUTIL_LIBS)
 
-lib1960_SOURCES = lib1960.c $(SUPPORTFILES) $(INET_PTON)
+lib1960_SOURCES = lib1960.c $(SUPPORTFILES)
 lib1960_LDADD = $(TESTUTIL_LIBS)
 
 lib1964_SOURCES = lib1964.c $(SUPPORTFILES) $(TESTUTIL) $(WARNLESS)
@@ -714,6 +714,9 @@ lib2310_LDADD = $(TESTUTIL_LIBS)
 lib2311_SOURCES = lib2311.c $(SUPPORTFILES) $(TESTUTIL) $(TSTTRACE) $(MULTIBYTE)
 lib2311_LDADD = $(TESTUTIL_LIBS)
 
+lib2312_SOURCES = lib2312.c $(SUPPORTFILES) $(TESTUTIL) $(TSTTRACE) $(MULTIBYTE)
+lib2312_LDADD = $(TESTUTIL_LIBS)
+
 lib2402_SOURCES = lib2402.c $(SUPPORTFILES) $(TESTUTIL) $(WARNLESS)
 lib2402_LDADD = $(TESTUTIL_LIBS)
 
@@ -754,7 +757,7 @@ lib3104_SOURCES = lib3104.c $(SUPPORTFILES)
 
 lib3105_SOURCES = lib3105.c $(SUPPORTFILES)
 
-lib3207_SOURCES = lib3207.c $(SUPPORTFILES) $(TESTUTIL) $(THREADS) $(WARNLESS) $(MULTIBYTE)
+lib3207_SOURCES = lib3207.c $(SUPPORTFILES) $(TESTUTIL) $(THREADS) $(WARNLESS) $(MULTIBYTE) $(MEMPTR)
 lib3207_LDADD = $(TESTUTIL_LIBS)
 
 lib3208_SOURCES = lib3208.c $(SUPPORTFILES) $(TESTUTIL)
