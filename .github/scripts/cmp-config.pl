@@ -23,6 +23,9 @@
 #
 ###########################################################################
 
+use strict;
+use warnings;
+
 my $autotools = $ARGV[0];
 my $cmake = $ARGV[1];
 
@@ -55,7 +58,6 @@ my %remove = (
     '#define HAVE_LIBSSL 1' => 1,
     '#define HAVE_LIBWOLFSSH' => 1,
     '#define HAVE_LIBZSTD 1' => 1,
-    '#define HAVE_MSH3_H 1' => 1,
     '#define HAVE_NGHTTP2_NGHTTP2_H 1' => 1,
     '#define HAVE_NGHTTP3_NGHTTP3_H 1' => 1,
     '#define HAVE_NGTCP2_NGTCP2_CRYPTO_H 1' => 1,
@@ -73,6 +75,7 @@ my %remove = (
     '#define HAVE_STDIO_H 1' => 1,
     '#define HAVE_STDLIB_H 1' => 1,
     '#define HAVE_STRING_H 1' => 1,
+    '#define HAVE_SYS_STAT_H 1' => 1,
     '#define HAVE_SYS_XATTR_H 1' => 1,
     '#define HAVE_UNICODE_UIDNA_H 1' => 1,
     '#define HAVE_WOLFSSH_SSH_H 1' => 1,

@@ -310,6 +310,7 @@ class Httpd:
                 f'LogLevel {self._get_log_level()}',
                 'StartServers 4',
                 'ReadBufferSize 16000',
+                'KeepAliveTimeout 30',  # CI may exceed the default of 5 sec
                 'H2MinWorkers 16',
                 'H2MaxWorkers 256',
                 f'TypesConfig "{self._conf_dir}/mime.types',
@@ -549,6 +550,11 @@ class Httpd:
                 '      SetEnv force-response-1.0 1',
                 '    </Location>',
                 '    SetEnvIf Request_URI "/shutdown_unclean" ssl-unclean=1',
+                '    RewriteEngine on',
+                '    RewriteRule    "^/curltest/put-redir-301$"  "/curltest/put"  [R=301]',
+                '    RewriteRule    "^/curltest/put-redir-302$"  "/curltest/put"  [R=302]',
+                '    RewriteRule    "^/curltest/put-redir-307$"  "/curltest/put"  [R=307]',
+                '    RewriteRule    "^/curltest/put-redir-308$"  "/curltest/put"  [R=308]',
             ])
         if self._auth_digest:
             lines.extend([

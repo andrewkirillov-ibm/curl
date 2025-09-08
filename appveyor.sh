@@ -35,10 +35,6 @@ esac
 
 if [ "${APPVEYOR_BUILD_WORKER_IMAGE}" = 'Visual Studio 2022' ]; then
   openssl_root_win="C:/OpenSSL-v34${openssl_suffix}"
-elif [ "${APPVEYOR_BUILD_WORKER_IMAGE}" = 'Visual Studio 2019' ]; then
-  openssl_root_win="C:/OpenSSL-v11${openssl_suffix}"
-elif [ "${APPVEYOR_BUILD_WORKER_IMAGE}" = 'Visual Studio 2013' ]; then
-  openssl_root_win="C:/OpenSSL${openssl_suffix}"
 else
   openssl_root_win="C:/OpenSSL-v111${openssl_suffix}"
 fi
@@ -52,6 +48,7 @@ if [ "${BUILD_SYSTEM}" = 'CMake' ]; then
     [ "${_chkprefill}" = '_chkprefill' ] && options+=' -D_CURL_PREFILL=OFF'
     [[ "${TARGET}" = *'ARM64'* ]] && SKIP_RUN='ARM64 architecture'
     [ -n "${TOOLSET:-}" ] && options+=" -T ${TOOLSET}"
+    [ -n "${WINTARGET:-}" ] && options+=" -DCURL_TARGET_WINDOWS_VERSION=${WINTARGET}"
     [ "${OPENSSL}" = 'ON' ] && options+=" -DOPENSSL_ROOT_DIR=${openssl_root_win}"
     [ -n "${CURLDEBUG:-}" ] && options+=" -DENABLE_CURLDEBUG=${CURLDEBUG}"
     if [ "${APPVEYOR_BUILD_WORKER_IMAGE}" = 'Visual Studio 2013' ]; then
@@ -67,7 +64,6 @@ if [ "${BUILD_SYSTEM}" = 'CMake' ]; then
     fi
     # shellcheck disable=SC2086
     time cmake -G "${PRJ_GEN}" ${TARGET} \
-      -DCURL_TEST_BUNDLES=ON \
       -DCURL_WERROR=ON \
       -DBUILD_SHARED_LIBS="${SHARED}" \
       -DCURL_STATIC_CRT=ON \
@@ -87,13 +83,7 @@ if [ "${BUILD_SYSTEM}" = 'CMake' ]; then
   fi
   echo 'curl_config.h'; grep -F '#define' _bld/lib/curl_config.h | sort || true
   # shellcheck disable=SC2086
-  if ! time cmake --build _bld --config "${PRJ_CFG}" --parallel 2 -- ${BUILD_OPT:-}; then
-    if [ "${PRJ_GEN}" = 'Visual Studio 9 2008' ]; then
-      find . -name BuildLog.htm -exec dos2unix '{}' +
-      find . -name BuildLog.htm -exec cat '{}' +
-    fi
-    false
-  fi
+  time cmake --build _bld --config "${PRJ_CFG}" --parallel 2 -- ${BUILD_OPT:-}
   [ "${SHARED}" = 'ON' ] && PATH="$PWD/_bld/lib/${PRJ_CFG}:$PATH"
   [ "${OPENSSL}" = 'ON' ] && { PATH="${openssl_root}:$PATH"; cp "${openssl_root}"/*.dll "_bld/src/${PRJ_CFG}"; }
   curl="_bld/src/${PRJ_CFG}/curl.exe"
@@ -147,7 +137,6 @@ fi
 
 if [ "${TFLAGS}" != 'skipall' ] && \
    [ "${TFLAGS}" != 'skiprun' ]; then
-  export CURL_DIRSUFFIX="${PRJ_CFG}"
   if [ -x "$(cygpath "${SYSTEMROOT}/System32/curl.exe")" ]; then
     TFLAGS+=" -ac $(cygpath "${SYSTEMROOT}/System32/curl.exe")"
   elif [ -x "$(cygpath 'C:/msys64/usr/bin/curl.exe')" ]; then
@@ -169,5 +158,12 @@ fi
 
 if [ "${EXAMPLES}" = 'ON' ] && \
    [ "${BUILD_SYSTEM}" = 'CMake' ]; then
-  time cmake --build _bld --config "${PRJ_CFG}" --parallel 2 --target curl-examples
+  time cmake --build _bld --config "${PRJ_CFG}" --parallel 2 --target curl-examples-build
+fi
+
+# disk space used
+
+du -sh .; echo; du -sh -t 250KB ./*
+if [ "${BUILD_SYSTEM}" = 'CMake' ]; then
+  echo; du -h -t 250KB _bld
 fi
