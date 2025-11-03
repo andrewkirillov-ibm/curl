@@ -76,6 +76,14 @@ For example, to insert the word hello 100 times:
 
     %repeat[100 x hello]%
 
+## Whitespace
+
+To add significant whitespace characters at the end of the line, or to empty
+lines:
+
+    %spc%
+    %tab%
+
 ## Insert capped epoch days
 
 Mostly to test capped cookie expire dates: `%days[NUM]` inserts the number of
@@ -513,7 +521,6 @@ Features testable here are:
 - `wakeup`
 - `win32`
 - `WinIDN`
-- `wolfssh`
 - `wolfssl`
 - `xattr`
 - `zstd`
@@ -656,7 +663,7 @@ command exists with a non-zero status code, the test is considered failed.
 A list of directory entries that are checked for after the test has completed
 and that must not exist. A listed entry existing causes the test to fail.
 
-### `<protocol [nonewline="yes"][crlf="yes"]>`
+### `<protocol [nonewline="yes"][crlf="yes|headers"]>`
 
 the protocol dump curl should transmit, if `nonewline` is set, we cut off the
 trailing newline of this given data before comparing with the one actually
@@ -665,6 +672,10 @@ comparisons are made.
 
 `crlf=yes` forces the newlines to become CRLF even if not written so in the
 test.
+
+`crlf=headers` forces *header* newlines to become CRLF even if not written so
+in the source file. Note that this makes runtests.pl parse and "guess" what is
+a header and what is not in order to apply the CRLF line endings appropriately.
 
 ### `<proxy [nonewline="yes"][crlf="yes"]>`
 
