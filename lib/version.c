@@ -78,7 +78,7 @@
 #endif
 
 #ifdef HAVE_GSSAPI
-# ifdef HAVE_GSSGNU
+# ifdef HAVE_GSSAPI_H
 #  include <gss.h>
 # else
 #  include <gssapi/gssapi.h>

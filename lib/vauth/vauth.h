@@ -234,7 +234,7 @@ CURLcode Curl_auth_create_xoauth_bearer_message(const char *user,
 #ifdef USE_KERBEROS5
 
 #ifdef HAVE_GSSAPI
-# ifdef HAVE_GSSGNU
+# ifdef HAVE_GSSAPI_H
 #  include <gss.h>
 # else
 #  include <gssapi/gssapi.h>

@@ -188,7 +188,7 @@ typedef CURLcode (Curl_recv)(struct Curl_easy *data,   /* transfer */
 #include "cf-socket.h"
 
 #ifdef HAVE_GSSAPI
-# ifdef HAVE_GSSGNU
+# ifdef HAVE_GSSAPI_H
 #  include <gss.h>
 # else
 #  include <gssapi/gssapi.h>
